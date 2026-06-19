@@ -1,4 +1,4 @@
-# Radio Area Locator
+# 双区网络定位
 
 一款基于 Jetpack Compose 的 Android 应用，自动获取手机定位并计算：
 
