@@ -1,18 +1,99 @@
-name: Build and Release APK
+name: Release APK with Version Bump
 
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag（例如 v1.0.0），将自动计算 versionCode = major*10000 + minor*100 + patch'
+        required: true
+        type: string
 
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Parse version
+        id: version
+        run: |
+          TAG="${{ github.event.inputs.tag }}"
+          VERSION_NAME="${TAG#v}"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION_NAME"
+          MAJOR=${MAJOR:-0}
+          MINOR=${MINOR:-0}
+          PATCH=${PATCH:-0}
+          VERSION_CODE=$((MAJOR * 10000 + MINOR * 100 + PATCH))
+          BRANCH="release/${TAG}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          echo "Release $TAG -> versionName=$VERSION_NAME, versionCode=$VERSION_CODE, branch=$BRANCH"
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Update version in build.gradle.kts
+        run: |
+          sed -i "s/versionCode = [0-9]*/versionCode = ${{ steps.version.outputs.version_code }}/" app/build.gradle.kts
+          sed -i 's/versionName = "[^"]*"/versionName = "${{ steps.version.outputs.version_name }}"/' app/build.gradle.kts
+          git diff app/build.gradle.kts
+
+      - name: Create release branch and PR
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git checkout -b ${{ steps.version.outputs.branch }}
+          git add app/build.gradle.kts
+          git commit -m "chore(release): bump version to ${{ steps.version.outputs.version_name }} (${{ steps.version.outputs.version_code }})"
+          git push origin ${{ steps.version.outputs.branch }}
+          PR_URL=$(gh pr create \
+            --title "Release ${{ steps.version.outputs.tag }}" \
+            --body "Automated version bump for ${{ steps.version.outputs.tag }}." \
+            --base main \
+            --head ${{ steps.version.outputs.branch }})
+          PR_NUMBER=$(echo "$PR_URL" | grep -oE '[0-9]+$')
+          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "Created PR #$PR_NUMBER"
+
+      - name: Merge PR to main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr merge ${{ steps.pr.outputs.pr_number }} --squash --delete-branch --admin
+
+      - name: Wait for PR merge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for i in {1..30}; do
+            STATE=$(gh pr view ${{ steps.pr.outputs.pr_number }} --json state -q .state)
+            echo "PR state: $STATE"
+            if [ "$STATE" = "MERGED" ]; then exit 0; fi
+            sleep 10
+          done
+          echo "PR did not merge in time"
+          exit 1
+
+      - name: Checkout main and create tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git checkout main
+          git pull origin main
+          git tag ${{ steps.version.outputs.tag }}
+          git push origin ${{ steps.version.outputs.tag }}
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -45,12 +126,12 @@ jobs:
 
       - name: Rename APK
         run: |
-          cp app/build/outputs/apk/release/app-release.apk RadioAreaLocator-${{ github.ref_name }}.apk
+          cp app/build/outputs/apk/release/app-release.apk RadioAreaLocator-${{ steps.version.outputs.tag }}.apk
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: RadioAreaLocator-${{ github.ref_name }}.apk
+          files: RadioAreaLocator-${{ steps.version.outputs.tag }}.apk
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
