@@ -15,4 +15,5 @@
     <string name="location_failed">定位失败，请检查 GPS 与网络</string>
     <string name="open_settings">去设置</string>
     <string name="tap_to_locate">点击刷新获取当前位置</string>
+    <string name="about">关于</string>
 </resources>
