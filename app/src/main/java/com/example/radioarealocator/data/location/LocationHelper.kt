@@ -8,10 +8,10 @@ import androidx.core.content.ContextCompat
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
 
 class LocationHelper(private val context: Context) {
 
@@ -54,7 +54,7 @@ class LocationHelper(private val context: Context) {
         return last ?: throw Exception("无法获取定位，请检查手机 GPS 或网络定位是否开启")
     }
 
-    private suspend fun requestCurrentLocation(): Location = suspendCoroutine { continuation ->
+    private suspend fun requestCurrentLocation(): Location = suspendCancellableCoroutine { continuation ->
         val token = CancellationTokenSource()
         try {
             fusedClient.getCurrentLocation(
@@ -80,7 +80,7 @@ class LocationHelper(private val context: Context) {
         }
     }
 
-    private suspend fun requestLastLocation(): Location = suspendCoroutine { continuation ->
+    private suspend fun requestLastLocation(): Location = suspendCancellableCoroutine { continuation ->
         try {
             fusedClient.lastLocation
                 .addOnSuccessListener { location ->
