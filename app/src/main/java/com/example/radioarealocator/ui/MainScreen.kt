@@ -65,7 +65,7 @@ fun MainScreen(
                         onClick = {
                             val intent = Intent(
                                 Intent.ACTION_VIEW,
-                                Uri.parse("https://github.com/fuxue-linkong/Radio-area-partition-query")
+                                Uri.parse("https://github.com/fuxue-linkong/Dual-zone_network_positioning")
                             )
                             context.startActivity(intent)
                         }
