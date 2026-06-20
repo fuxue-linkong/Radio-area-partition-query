@@ -17,8 +17,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -142,7 +142,7 @@ fun AboutScreen(
             AboutLinkItem(
                 icon = {
                     Icon(
-                        imageVector = Icons.Default.Code,
+                        imageVector = Icons.Default.OpenInNew,
                         contentDescription = null
                     )
                 },
