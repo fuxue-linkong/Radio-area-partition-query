@@ -3,15 +3,12 @@ package com.example.radioarealocator.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.AlertDialog
@@ -41,10 +38,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.radioarealocator.R
 import com.example.radioarealocator.data.LocationResult
-import com.example.radioarealocator.data.db.HistoryRecord
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,10 +48,22 @@ fun MainScreen(
     val uiState by viewModel.uiState
     val history by viewModel.history.collectAsState()
     var showAbout by remember { mutableStateOf(false) }
+    var showHistory by remember { mutableStateOf(false) }
 
-    if (showAbout) {
-        AboutScreen(onBackClick = { showAbout = false })
-        return
+    when {
+        showAbout -> {
+            AboutScreen(onBackClick = { showAbout = false })
+            return
+        }
+
+        showHistory -> {
+            HistoryScreen(
+                history = history,
+                onClearHistory = { viewModel.clearHistory() },
+                onBackClick = { showHistory = false }
+            )
+            return
+        }
     }
 
     Scaffold(
@@ -84,7 +89,8 @@ fun MainScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             LocationCard(
                 isLoading = uiState.isLoading,
@@ -94,27 +100,7 @@ fun MainScreen(
                 onRefresh = { viewModel.refreshLocation() }
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = stringResource(R.string.history),
-                    style = MaterialTheme.typography.titleLarge
-                )
-                if (history.isNotEmpty()) {
-                    TextButton(onClick = { viewModel.clearHistory() }) {
-                        Text(stringResource(R.string.clear_history))
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            HistoryList(history = history)
+            HistoryEntryCard(onClick = { showHistory = true })
         }
 
         uiState.error?.let { message ->
@@ -189,6 +175,27 @@ private fun LocationCard(
 }
 
 @Composable
+private fun HistoryEntryCard(onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = stringResource(R.string.history),
+                style = MaterialTheme.typography.titleMedium
+            )
+        }
+    }
+}
+
+@Composable
 private fun ResultContent(result: LocationResult) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         InfoRow(label = stringResource(R.string.latitude), value = "%.5f".format(result.latitude))
@@ -227,72 +234,6 @@ private fun InfoRow(label: String, value: String) {
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Bold
         )
-    }
-}
-
-@Composable
-private fun HistoryList(history: List<HistoryRecord>) {
-    if (history.isEmpty()) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = stringResource(R.string.empty_history),
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        return
-    }
-
-    LazyColumn(
-        contentPadding = PaddingValues(vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        items(history, key = { it.id }) { record ->
-            HistoryItem(record = record)
-        }
-    }
-}
-
-private val timeFormatter = DateTimeFormatter
-    .ofPattern("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-    .withZone(ZoneId.systemDefault())
-
-@Composable
-private fun HistoryItem(record: HistoryRecord) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                text = timeFormatter.format(record.createdAt),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "CQ ${record.cqZone ?: "-"} / ITU ${record.ituZone ?: "-"}",
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = record.maidenhead.uppercase(),
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-            Text(
-                text = "%.5f°, %.5f°".format(record.latitude, record.longitude),
-                style = MaterialTheme.typography.bodySmall
-            )
-        }
     }
 }
 
