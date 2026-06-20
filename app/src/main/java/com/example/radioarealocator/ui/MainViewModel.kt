@@ -10,6 +10,9 @@ import com.example.radioarealocator.data.HistoryRepository
 import com.example.radioarealocator.data.LocationResult
 import com.example.radioarealocator.data.db.HistoryRecord
 import com.example.radioarealocator.data.location.LocationHelper
+import com.example.radioarealocator.data.satellite.SatelliteDataSource
+import com.example.radioarealocator.data.satellite.SatelliteInfo
+import com.example.radioarealocator.data.satellite.SatellitePredictor
 import com.example.radioarealocator.data.zone.ZoneResolver
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -21,6 +24,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val locationHelper = LocationHelper(application)
     private val repository: HistoryRepository =
         (application as RadioAreaLocatorApplication).historyRepository
+    private val satelliteDataSource = SatelliteDataSource()
+    private val satellitePredictor = SatellitePredictor()
 
     val history: StateFlow<List<HistoryRecord>> = repository.history.stateIn(
         scope = viewModelScope,
@@ -43,7 +48,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+        _uiState.value = _uiState.value.copy(
+            isLoading = true,
+            error = null,
+            satelliteError = null
+        )
         viewModelScope.launch {
             try {
                 val location = locationHelper.getCurrentLocation()
@@ -56,9 +65,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     maidenhead = zoneInfo.maidenhead
                 )
                 repository.save(result)
+
+                // 同步刷新卫星信息
+                val satellites = refreshSatellites(location.latitude, location.longitude)
+
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     result = result,
+                    satellites = satellites,
                     error = null
                 )
             } catch (e: Exception) {
@@ -67,6 +81,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     error = e.message ?: "定位失败"
                 )
             }
+        }
+    }
+
+    private suspend fun refreshSatellites(latitude: Double, longitude: Double): List<SatelliteInfo> {
+        return try {
+            val tles = satelliteDataSource.fetchAmateurTLEs()
+            satellitePredictor.predictUpcomingPasses(
+                tles = tles,
+                latitude = latitude,
+                longitude = longitude,
+                limit = 10
+            )
+        } catch (e: Exception) {
+            _uiState.value = _uiState.value.copy(satelliteError = e.message)
+            emptyList()
         }
     }
 
@@ -84,5 +113,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 data class MainUiState(
     val isLoading: Boolean = false,
     val result: LocationResult? = null,
-    val error: String? = null
+    val satellites: List<SatelliteInfo> = emptyList(),
+    val error: String? = null,
+    val satelliteError: String? = null
 )

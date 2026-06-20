@@ -1,5 +1,6 @@
 package com.example.radioarealocator.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,9 +10,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.activity.compose.BackHandler
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -39,6 +42,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.radioarealocator.R
 import com.example.radioarealocator.data.LocationResult
+import com.example.radioarealocator.data.satellite.SatelliteInfo
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -106,6 +112,13 @@ fun MainScreen(
                 hasPermission = viewModel.hasLocationPermission,
                 onRequestPermission = onRequestPermission,
                 onRefresh = { viewModel.refreshLocation() }
+            )
+
+            SatelliteCard(
+                isLoading = uiState.isLoading,
+                satellites = uiState.satellites,
+                satelliteError = uiState.satelliteError,
+                hasLocation = uiState.result != null
             )
 
             HistoryEntryCard(onClick = { showHistory = true })
@@ -241,6 +254,180 @@ private fun InfoRow(label: String, value: String) {
             text = value,
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+@Composable
+private fun SatelliteCard(
+    isLoading: Boolean,
+    satellites: List<SatelliteInfo>,
+    satelliteError: String?,
+    hasLocation: Boolean
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Radio,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(R.string.nearby_satellites),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
+                if (satellites.isNotEmpty()) {
+                    Text(
+                        text = stringResource(R.string.satellite_count, satellites.size),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            when {
+                isLoading && satellites.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+
+                satelliteError != null -> {
+                    Text(
+                        text = stringResource(R.string.satellite_load_failed, satelliteError),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+
+                !hasLocation -> {
+                    Text(
+                        text = stringResource(R.string.satellite_need_location),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                satellites.isEmpty() -> {
+                    Text(
+                        text = stringResource(R.string.no_satellites),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                else -> {
+                    satellites.forEachIndexed { index, sat ->
+                        SatelliteRow(satellite = sat)
+                        if (index < satellites.lastIndex) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(vertical = 8.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private val satelliteTimeFormatter = DateTimeFormatter.ofPattern("MM-dd HH:mm")
+
+@Composable
+private fun SatelliteRow(satellite: SatelliteInfo) {
+    val startTime = satellite.aosTime.atZone(ZoneId.systemDefault())
+        .format(satelliteTimeFormatter)
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = satellite.name,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "${stringResource(R.string.max_elevation)} ${satellite.maxElevation.toInt()}°",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                satellite.modes.forEach { mode ->
+                    ModeChip(mode = mode)
+                }
+            }
+            Text(
+                text = "${stringResource(R.string.aos_time)} $startTime",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun ModeChip(mode: String) {
+    val color = when (mode.uppercase()) {
+        "FM" -> MaterialTheme.colorScheme.primaryContainer
+        "SSTV" -> MaterialTheme.colorScheme.secondaryContainer
+        "DSTAR" -> MaterialTheme.colorScheme.tertiaryContainer
+        "CW" -> MaterialTheme.colorScheme.errorContainer
+        "USB", "LSB" -> MaterialTheme.colorScheme.surfaceVariant
+        else -> MaterialTheme.colorScheme.surfaceVariant
+    }
+    val contentColor = when (mode.uppercase()) {
+        "FM" -> MaterialTheme.colorScheme.onPrimaryContainer
+        "SSTV" -> MaterialTheme.colorScheme.onSecondaryContainer
+        "DSTAR" -> MaterialTheme.colorScheme.onTertiaryContainer
+        "CW" -> MaterialTheme.colorScheme.onErrorContainer
+        "USB", "LSB" -> MaterialTheme.colorScheme.onSurfaceVariant
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    Box(
+        modifier = Modifier
+            .padding(end = 4.dp)
+            .background(color = color, shape = MaterialTheme.shapes.small)
+    ) {
+        Text(
+            text = mode,
+            style = MaterialTheme.typography.labelSmall,
+            color = contentColor,
+            modifier = Modifier
+                .padding(horizontal = 6.dp, vertical = 2.dp)
         )
     }
 }
