@@ -12,7 +12,7 @@ android {
         applicationId = "com.example.radioarealocator"
         minSdk = 26
         targetSdk = 34
-        versionCode = 5
+        versionCode = 6
         versionName = "ersion1.0.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
