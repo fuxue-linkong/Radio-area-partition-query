@@ -34,8 +34,10 @@ class SatelliteDataSource {
      * 同时从 CelesTrak 和 SatNOGS 拉取，合并去重（按 NORAD 编号）。
      * 同时出现在两个源的卫星标记为 ALL。
      * 任一源失败时使用另一个源的结果。
+     *
+     * @param source 数据来源过滤："ALL" 全部, "CT" 仅 CelesTrak, "SNOGS" 仅 SatNOGS
      */
-    suspend fun fetchAmateurTLEs(): List<SourcedTLE> = withContext(Dispatchers.IO) {
+    suspend fun fetchAmateurTLEs(source: String = "ALL"): List<SourcedTLE> = withContext(Dispatchers.IO) {
         coroutineScope {
             val celestrakDeferred = async { runCatching { fetchCelestrakTLEs() } }
             val satnogsDeferred = async { runCatching { fetchSatnogsTLEs() } }
@@ -65,7 +67,15 @@ class SatelliteDataSource {
                 }
             }
 
-            merged.values.toList()
+            // 按用户选择的来源过滤
+            val filtered = when (source) {
+                "CT" -> merged.values.filter { it.source == "CT" || it.source == "ALL" }
+                    .map { SourcedTLE(it.tle, "CT") }
+                "SNOGS" -> merged.values.filter { it.source == "SNOGS" || it.source == "ALL" }
+                    .map { SourcedTLE(it.tle, "SNOGS") }
+                else -> merged.values.toList()
+            }
+            filtered
         }
     }
 

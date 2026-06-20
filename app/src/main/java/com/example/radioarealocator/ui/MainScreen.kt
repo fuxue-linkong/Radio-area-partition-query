@@ -62,11 +62,13 @@ fun MainScreen(
     val history by viewModel.history.collectAsState()
     var showAbout by remember { mutableStateOf(false) }
     var showHistory by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(false) }
 
-    BackHandler(enabled = showAbout || showHistory) {
+    BackHandler(enabled = showAbout || showHistory || showSettings) {
         when {
             showAbout -> showAbout = false
             showHistory -> showHistory = false
+            showSettings -> showSettings = false
         }
     }
 
@@ -85,6 +87,15 @@ fun MainScreen(
             )
             return
         }
+
+        showSettings -> {
+            SettingsScreen(
+                satelliteSource = viewModel.satelliteSource.value,
+                onSourceSelected = { viewModel.setSatelliteSource(it) },
+                onBackClick = { showSettings = false }
+            )
+            return
+        }
     }
 
     Scaffold(
@@ -95,6 +106,12 @@ fun MainScreen(
                     TextButton(onClick = { showAbout = true }) {
                         Text(
                             text = stringResource(R.string.about),
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                    TextButton(onClick = { showSettings = true }) {
+                        Text(
+                            text = stringResource(R.string.settings),
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                     }

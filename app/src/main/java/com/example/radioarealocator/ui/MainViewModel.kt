@@ -36,6 +36,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiState = mutableStateOf(MainUiState())
     val uiState: State<MainUiState> = _uiState
 
+    // 卫星数据来源设置："ALL" / "CT" / "SNOGS"
+    private val _satelliteSource = mutableStateOf("ALL")
+    val satelliteSource: State<String> = _satelliteSource
+
+    fun setSatelliteSource(source: String) {
+        _satelliteSource.value = source
+    }
+
     val hasLocationPermission: Boolean
         get() = locationHelper.hasPermission()
 
@@ -86,7 +94,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private suspend fun refreshSatellites(latitude: Double, longitude: Double): List<SatelliteInfo> {
         return try {
-            val tles = satelliteDataSource.fetchAmateurTLEs()
+            val tles = satelliteDataSource.fetchAmateurTLEs(source = _satelliteSource.value)
             satellitePredictor.predictUpcomingPasses(
                 sourcedTles = tles,
                 latitude = latitude,
