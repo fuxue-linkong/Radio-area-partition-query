@@ -90,6 +90,8 @@ dependencies {
 
     // Satellite prediction
     implementation("com.github.davidmoten:predict4java:1.3.1")
+    // predict4java 运行时依赖 Apache Commons Logging
+    implementation("commons-logging:commons-logging:1.2")
 
     // HTTP client for TLE data
     implementation("com.squareup.okhttp3:okhttp:4.12.0")

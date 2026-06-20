@@ -28,4 +28,6 @@
 -keep class com.github.amsacode.predict4java.** { *; }
 -keep class org.apache.commons.lang.** { *; }
 -keep class com.github.davidmoten.guavamini.** { *; }
+-keep class org.apache.commons.logging.** { *; }
+-keep class org.apache.commons.logging.impl.** { *; }
 -dontwarn org.apache.commons.logging.**
