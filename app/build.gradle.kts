@@ -12,8 +12,8 @@ android {
         applicationId = "com.example.radioarealocator"
         minSdk = 26
         targetSdk = 34
-        versionCode = 7
-        versionName = "ersion1.0.6"
+        versionCode = 8
+        versionName = "ersion1.0.7"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
