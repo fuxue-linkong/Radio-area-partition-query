@@ -8,5 +8,6 @@ data class LocationResult(
     val cqZone: Int?,
     val ituZone: Int?,
     val maidenhead: String,
+    val address: String = "",
     val timestamp: Instant = Instant.now()
 )

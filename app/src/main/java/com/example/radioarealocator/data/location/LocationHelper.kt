@@ -3,9 +3,12 @@ package com.example.radioarealocator.data.location
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.location.Address
+import android.location.Geocoder
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Looper
 import androidx.core.content.ContextCompat
@@ -335,6 +338,62 @@ class LocationHelper(private val context: Context) {
             locationManager.removeUpdates(listener)
         } catch (e: Exception) {
             // ignore
+        }
+    }
+
+    /**
+     * 根据经纬度反向地理编码获取地址信息。
+     * 在后台线程执行，返回格式化地址字符串；失败或不可用时返回空字符串。
+     */
+    suspend fun getAddress(latitude: Double, longitude: Double): String {
+        return try {
+            withTimeout(5_000) {
+                suspendCancellableCoroutine { continuation ->
+                    if (!Geocoder.isPresent()) {
+                        continuation.resume("")
+                        return@suspendCancellableCoroutine
+                    }
+
+                    val geocoder = Geocoder(context)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        geocoder.getFromLocation(
+                            latitude,
+                            longitude,
+                            1,
+                            object : Geocoder.GeocodeListener {
+                                override fun onGeocode(addresses: MutableList<Address>) {
+                                    continuation.resume(formatAddress(addresses.firstOrNull()))
+                                }
+
+                                override fun onError(errorMessage: String?) {
+                                    continuation.resume("")
+                                }
+                            }
+                        )
+                    } else {
+                        @Suppress("DEPRECATION")
+                        val addresses = geocoder.getFromLocation(latitude, longitude, 1)
+                        continuation.resume(formatAddress(addresses?.firstOrNull()))
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            ""
+        }
+    }
+
+    private fun formatAddress(address: Address?): String {
+        if (address == null) return ""
+        val parts = listOfNotNull(
+            address.adminArea,
+            address.locality,
+            address.subLocality,
+            address.thoroughfare
+        ).filter { it.isNotBlank() }
+        return if (parts.isNotEmpty()) {
+            parts.joinToString(" ")
+        } else {
+            address.getAddressLine(0) ?: ""
         }
     }
 }

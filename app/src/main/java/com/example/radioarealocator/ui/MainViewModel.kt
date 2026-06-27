@@ -51,12 +51,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val location = locationHelper.getCurrentLocation()
                 val zoneInfo = ZoneResolver.resolve(location.latitude, location.longitude)
+                val address = locationHelper.getAddress(location.latitude, location.longitude)
                 val result = LocationResult(
                     latitude = location.latitude,
                     longitude = location.longitude,
                     cqZone = zoneInfo.cqZone,
                     ituZone = zoneInfo.ituZone,
-                    maidenhead = zoneInfo.maidenhead
+                    maidenhead = zoneInfo.maidenhead,
+                    address = address
                 )
 
                 // 同步刷新卫星信息

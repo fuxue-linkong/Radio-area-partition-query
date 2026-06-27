@@ -272,6 +272,15 @@ private fun ResultContent(result: LocationResult) {
             label = stringResource(R.string.maidenhead),
             value = result.maidenhead.uppercase()
         )
+        if (result.address.isNotBlank()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            HorizontalDivider()
+            Spacer(modifier = Modifier.height(8.dp))
+            InfoRow(
+                label = stringResource(R.string.address),
+                value = result.address
+            )
+        }
     }
 }
 
