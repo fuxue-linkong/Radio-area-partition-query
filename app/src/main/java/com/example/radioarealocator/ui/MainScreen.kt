@@ -18,31 +18,38 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.activity.compose.BackHandler
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -67,7 +74,8 @@ fun MainScreen(
     var showAbout by remember { mutableStateOf(false) }
     var showHistory by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
-    var showMenu by remember { mutableStateOf(false) }
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
 
     BackHandler(enabled = showAbout || showHistory || showSettings) {
         when {
@@ -103,76 +111,92 @@ fun MainScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.app_name)) },
-                navigationIcon = {
-                    Box {
-                        IconButton(onClick = { showMenu = true }) {
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.app_name),
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                }
+                HorizontalDivider()
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Default.Info, contentDescription = null) },
+                    label = { Text(stringResource(R.string.about)) },
+                    selected = false,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        showAbout = true
+                    }
+                )
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Default.Settings, contentDescription = null) },
+                    label = { Text(stringResource(R.string.settings)) },
+                    selected = false,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        showSettings = true
+                    }
+                )
+            }
+        }
+    ) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text(stringResource(R.string.app_name)) },
+                    navigationIcon = {
+                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
                             Icon(
                                 imageVector = Icons.Default.Menu,
                                 contentDescription = stringResource(R.string.settings),
                                 tint = MaterialTheme.colorScheme.onPrimary
                             )
                         }
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.about)) },
-                                onClick = {
-                                    showMenu = false
-                                    showAbout = true
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.settings)) },
-                                onClick = {
-                                    showMenu = false
-                                    showSettings = true
-                                }
-                            )
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                        navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
+                    )
                 )
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            LocationCard(
-                isLoading = uiState.isLoading,
-                result = uiState.result,
-                hasPermission = viewModel.hasLocationPermission,
-                onRequestPermission = onRequestPermission,
-                onRefresh = { viewModel.refreshLocation() }
-            )
+            }
+        ) { padding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                LocationCard(
+                    isLoading = uiState.isLoading,
+                    result = uiState.result,
+                    hasPermission = viewModel.hasLocationPermission,
+                    onRequestPermission = onRequestPermission,
+                    onRefresh = { viewModel.refreshLocation() }
+                )
 
-            SatelliteCard(
-                isLoading = uiState.isLoading,
-                satellites = uiState.satellites,
-                satelliteError = uiState.satelliteError,
-                hasLocation = uiState.result != null
-            )
+                SatelliteCard(
+                    isLoading = uiState.isLoading,
+                    satellites = uiState.satellites,
+                    satelliteError = uiState.satelliteError,
+                    hasLocation = uiState.result != null
+                )
 
-            HistoryEntryCard(onClick = { showHistory = true })
-        }
+                HistoryEntryCard(onClick = { showHistory = true })
+            }
 
-        uiState.error?.let { message ->
-            ErrorDialog(message = message, onDismiss = { viewModel.dismissError() })
+            uiState.error?.let { message ->
+                ErrorDialog(message = message, onDismiss = { viewModel.dismissError() })
+            }
         }
     }
 }
