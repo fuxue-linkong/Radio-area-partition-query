@@ -5,6 +5,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -53,6 +55,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.radioarealocator.R
 import com.example.radioarealocator.data.LocationResult
@@ -388,20 +391,27 @@ private fun SatelliteCard(
 
 private val satelliteTimeFormatter = DateTimeFormatter.ofPattern("MM-dd HH:mm")
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SatelliteRow(satellite: SatelliteInfo) {
     val now = remember { Instant.now() }
 
     Column(modifier = Modifier.fillMaxWidth()) {
+        // 第一行：名称/标签与最大仰角，右侧固定宽度避免被挤压
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.Top
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            // 左侧：状态点 + 名称 + chips，允许换行
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 // 状态指示点：在境为实心圆，即将入境为空心圆
                 Box(
                     modifier = Modifier
+                        .padding(top = 6.dp)
                         .size(8.dp)
                         .then(
                             if (satellite.isCurrentlyVisible) {
@@ -419,34 +429,41 @@ private fun SatelliteRow(satellite: SatelliteInfo) {
                         )
                 )
                 Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = satellite.name,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = if (satellite.isCurrentlyVisible)
-                        MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurface
-                )
-                if (satellite.source.isNotEmpty()) {
-                    Spacer(modifier = Modifier.width(6.dp))
-                    SourceChip(source = satellite.source)
-                }
-                if (satellite.status.isNotEmpty()) {
-                    Spacer(modifier = Modifier.width(6.dp))
-                    StatusChip(status = satellite.status)
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(
+                        text = satellite.name,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = if (satellite.isCurrentlyVisible)
+                            MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurface
+                    )
+                    if (satellite.source.isNotEmpty()) {
+                        SourceChip(source = satellite.source)
+                    }
+                    if (satellite.status.isNotEmpty()) {
+                        StatusChip(status = satellite.status)
+                    }
                 }
             }
+
+            // 右侧：最大仰角，固定最小宽度，顶部对齐
             Text(
-                text = "${stringResource(R.string.max_elevation)} ${satellite.maxElevation.toInt()}°",
+                text = "${stringResource(R.string.max_elevation)}\n${satellite.maxElevation.toInt()}°",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.End,
+                modifier = Modifier.padding(start = 8.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(6.dp))
 
+        // 第二行：模式 chips 与时间信息
         if (satellite.isCurrentlyVisible) {
-            // 在境：显示出境时间和剩余时间
             val losTime = satellite.losTime.atZone(ZoneId.systemDefault())
                 .format(satelliteTimeFormatter)
             val remainingSeconds = Duration.between(now, satellite.losTime).seconds
@@ -457,7 +474,11 @@ private fun SatelliteRow(satellite: SatelliteInfo) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                FlowRow(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
                     satellite.modes.forEach { mode ->
                         ModeChip(mode = mode)
                     }
@@ -476,7 +497,6 @@ private fun SatelliteRow(satellite: SatelliteInfo) {
                 }
             }
         } else {
-            // 即将入境：显示入境时间
             val aosTime = satellite.aosTime.atZone(ZoneId.systemDefault())
                 .format(satelliteTimeFormatter)
 
@@ -485,7 +505,11 @@ private fun SatelliteRow(satellite: SatelliteInfo) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                FlowRow(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
                     satellite.modes.forEach { mode ->
                         ModeChip(mode = mode)
                     }
